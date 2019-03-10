@@ -72,6 +72,15 @@ interface Point {
     y: number
 }
 
+// A 2D line.
+
+interface Line {
+    x1: number,
+    y1: number,
+    x2: number,
+    y2: number
+}
+
 // A bounding rectangle.
 
 interface Rectangle {
@@ -95,7 +104,7 @@ interface Cell extends Rectangle {
 
 // Constructs a rectangle based on the intersection of the two specified rectangles.
 
-function intersect(rectangle1: Rectangle, rectangle2: Rectangle): Rectangle {
+function intersectRectangles(rectangle1: Rectangle, rectangle2: Rectangle): Rectangle {
     let x1 = Math.max(rectangle1.x, rectangle2.x);
     let y1 = Math.max(rectangle1.y, rectangle2.y);
     let x2 = Math.min(rectangle1.x + rectangle1.width, rectangle2.x + rectangle2.width);
@@ -106,12 +115,32 @@ function intersect(rectangle1: Rectangle, rectangle2: Rectangle): Rectangle {
         return { x: 0, y: 0, width: 0, height: 0 };
 }
 
+// Finds the intersection point of two lines.
+
+function intersectLines(line1: Line, line2: Line) : Point {
+    if ((line1.x1 === line1.x2 && line1.y1 === line1.y2) || (line2.x1 === line2.x2 && line2.y1 === line2.y2))
+        return undefined;
+  
+    let denominator = (line2.y2 - line2.y1) * (line1.x2 - line1.x1) - (line1.x2 - line1.x1) * (line1.y2 - line1.y1);  
+    if (denominator === 0)
+        return undefined;
+  
+    let slope1 = ((line2.x2 - line2.x1) * (line1.y1 - line2.y1) - (line2.y2 - line2.y1) * (line1.x1 - line2.x1)) / denominator;
+    let slope2 = ((line1.x2 - line1.x1) * (line1.y1 - line2.y1) - (line1.y2 - line1.y1) * (line1.x1 - line2.x1)) / denominator;  
+    if (slope1 < 0 || slope1 > 1 || slope2 < 0 || slope2 > 1)
+        return undefined;
+  
+    let x = line1.x1 + slope1 * (line1.x2 - line1.x1);
+    let y = line1.y1 + slope1 * (line1.y2 - line1.y1);  
+    return { x: x, y: y };
+}
+
 // Calculates the fraction of an element that lies within a cell (as a percentage).  For example,
 // if a quarter of the specifed element lies within the specified cell then this would return 25.
 
 function getPercentageOfElementInCell(element: Element, cell: Cell) {
     let elementArea = getArea(element);
-    let intersectionArea = getArea(intersect(cell, element));
+    let intersectionArea = getArea(intersectRectangles(cell, element));
     return (elementArea === 0) ? 0 : ((intersectionArea * 100) / elementArea);
 }
 
@@ -162,6 +191,8 @@ async function parseCells(page) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
+        console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
         else if (operators.fnArray[index] === pdfjs.OPS.save)
@@ -195,64 +226,70 @@ async function parseCells(page) {
         }
     }
 
+for (let line of lines)
+    [ line.x, line.y, line.width, line.height ] = [ line.y, line.x, line.height, line.width ];
+for (let line of lines)
+    line.y = -(line.y + line.height);
+for (let line of lines)
+    console.log(`FillRectangle(e.Graphics, ${line.x}f, ${line.y}f, ${line.width}f, ${line.height}f);`);
+
     // Determine all the horizontal lines and vertical lines that make up the grid.  The following
     // is careful to ignore the short lines and small rectangles that could make up vector images
     // outside of the grid (such as a logo).  Otherwise these short lines would cause problems due
     // to the additional cells that they would cause to be constructed later.
 
-    let points: Point[] = [];
+    let horizontalLines: Rectangle[] = [];
+    let verticalLines: Rectangle[] = [];
 
     for (let line of lines) {
-        let startPoint: Point = undefined;
-        let endPoint: Point = undefined;
-
-        if (line.height <= Tolerance && line.width >= 10) {
-            // Identify a horizontal line.  Extract its start and end points.
-
-            startPoint = { x: line.x, y: line.y };
-            endPoint = { x: line.x + line.width, y: line.y };
-        } else if (line.width <= Tolerance && line.height >= 10) {
-            // Identify a vertical line (note that these might not be very tall if there are not
-            // many development applications in the grid).  Extract its start and end points.
-
-            startPoint = { x: line.x, y: line.y };
-            endPoint = { x: line.x, y: line.y + line.height };
-        }
-
-        // Record the points for later processing.
-
-        if (endPoint !== undefined && startPoint !== undefined) {
-            if (!points.some(point => (startPoint.x - point.x) ** 2 + (startPoint.y - point.y) ** 2 < Tolerance ** 2))
-                points.push(startPoint);
-            if (!points.some(point => (endPoint.x - point.x) ** 2 + (endPoint.y - point.y) ** 2 < Tolerance ** 2))
-                points.push(endPoint);    
-        }
+        if (line.height <= Tolerance && line.width >= 10)  // a horizontal line
+            horizontalLines.push(line);
+        else if (line.width <= Tolerance && line.height >= 10)  // a vertical line
+            verticalLines.push(line);
     }
 
-    // Construct cells based on the grid of points.
+    let verticalLineComparer = (a, b) => (a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0);
+    verticalLines.sort(verticalLineComparer);
+
+    let horizontalLineComparer = (a, b) => (a.y > b.y) ? 1 : ((a.y < b.y) ? -1 : 0);
+    horizontalLines.sort(horizontalLineComparer);
+    
+    // Find all intersection points.
+
+    let points: Point[] = [];
+    for (let line1 of lines) {
+        points.push({ x: line1.x, y: line1.y }, { x: line1.x + line1.width, y: line1.y + line1.height });  // add the start and end points of all lines
+        for (let line2 of lines) {
+            let point = intersectLines(
+                { x1: line1.x, y1: line1.y, x2: line1.x + line1.width, y2: line1.y + line1.height },
+                { x1: line2.x, y1: line2.y, x2: line2.x + line2.width, y2: line2.y + line2.height });
+            if (point !== undefined)
+                points.push(point);  // add the intersection point
+        }
+    }
+    
+    // Construct cells based on the grid of lines.
 
     let cells: Cell[] = [];
-    for (let point of points) {
-        // Find the next closest point in the X direction (moving across horizontally with
-        // approximately the same Y co-ordinate).
 
-        let closestRightPoint = points.reduce(((previous, current) => (Math.abs(current.y - point.y) < Tolerance && current.x > point.x && (previous === undefined || (current.x - point.x < previous.x - point.x))) ? current : previous), undefined);
-
-        // Find the next closest point in the Y direction (moving down vertically with
-        // approximately the same X co-ordinate).
-
-        let closestDownPoint = points.reduce(((previous, current) => (Math.abs(current.x - point.x) < Tolerance && current.y > point.y && (previous === undefined || (current.y - point.y < previous.y - point.y))) ? current : previous), undefined);
-
-        // Construct a rectangle from the discovered points.
-
-        if (closestRightPoint !== undefined && closestDownPoint !== undefined)
-            cells.push({ elements: [], x: point.x, y: point.y, width: closestRightPoint.x - point.x, height: closestDownPoint.y - point.y });
+    for (let horizontalLineIndex = 0; horizontalLineIndex < horizontalLines.length - 1; horizontalLineIndex++) {
+        for (let verticalLineIndex = 0; verticalLineIndex < verticalLines.length - 1; verticalLineIndex++) {
+            let horizontalLine = horizontalLines[horizontalLineIndex];
+            let nextHorizontalLine = horizontalLines[horizontalLineIndex + 1];
+            let verticalLine = verticalLines[verticalLineIndex];
+            let nextVerticalLine = verticalLines[verticalLineIndex + 1];
+            cells.push({ elements: [], x: verticalLine.x, y: horizontalLine.y, width: nextVerticalLine.x - verticalLine.x, height: nextHorizontalLine.y - horizontalLine.y });
+        }
     }
 
     // Sort the cells by approximate Y co-ordinate and then by X co-ordinate.
 
     let cellComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
     cells.sort(cellComparer);
+
+    for (let cell of cells)
+        console.log(`DrawRectangle(e.Graphics, ${cell.x}f, ${cell.y}f, ${cell.width}f, ${cell.height}f);`);
+
     return cells;
 }
 
@@ -326,7 +363,15 @@ async function parsePdf(url: string) {
         for (let element of elements)
             element.y = -(element.y + element.height);
 
-        // Sort the cells by approximate Y co-ordinate and then by X co-ordinate.
+        if (page.rotate === 90) {
+            console.log(`Page rotation: ${page.rotate}`);
+            for (let cell of cells)
+                [ cell.x, cell.y, cell.width, cell.height ] = [ cell.y, cell.x, cell.height, cell.width ];
+            for (let element of elements)
+                [ element.x, element.y, element.width, element.height ] = [ element.y, element.x, element.height, element.width ];
+        }
+
+        // Sort the elements by approximate Y co-ordinate and then by X co-ordinate.
 
         let cellComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
         cells.sort(cellComparer);
@@ -519,7 +564,8 @@ async function main() {
     if (getRandom(0, 2) === 0)
         selectedPdfUrls.reverse();
 
-    for (let pdfUrl of selectedPdfUrls) {
+    // for (let pdfUrl of selectedPdfUrls) {
+    for (let pdfUrl of [ "https://www.mtr.sa.gov.au/webdata/resources/files/June%202016-1.pdf" ]) {
         console.log(`Parsing document: ${pdfUrl}`);
         let developmentApplications = await parsePdf(pdfUrl);
         console.log(`Parsed ${developmentApplications.length} development ${(developmentApplications.length == 1) ? "application" : "applications"} from document: ${pdfUrl}`);
