@@ -665,8 +665,12 @@ async function parsePdf(url: string) {
 
             // Construct the application number.
 
-            if (applicationNumberCell === undefined)
+            if (applicationNumberCell === undefined) {}
+                let rowSummary = row.map(cell => `[${cell.elements.map(element => `(${element.text})`).join("")}]`).join("");
+                console.log(`No application number was found on the row: ${rowSummary}`);
                 continue;
+            }
+
             let applicationNumber = applicationNumberCell.elements.map(element => element.text).join("").trim();
             if (!/[0-9]+\/[0-9]+\/[0-9]+/.test(applicationNumber)) { // an application number must be present, for example, "690/006/15"
                 console.log(`Ignoring "${applicationNumber}" because it is not formatted as an application number.`);
@@ -777,7 +781,7 @@ async function main() {
         let pdfUrl = new urlparser.URL(element.attribs.href, DevelopmentApplicationsUrl).href;
         if (pdfUrl.toLowerCase().includes(".pdf"))
             if (!pdfUrls.some(url => url === pdfUrl))  // avoid duplicates
-                pdfUrls.push(pdfUrl);
+                pdfUrls.unshift(pdfUrl);
     }
 
     // Always parse the most recent PDF file and randomly select one other PDF file to parse.
