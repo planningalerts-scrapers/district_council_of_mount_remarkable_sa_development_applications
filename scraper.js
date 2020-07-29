@@ -22,7 +22,7 @@ let StreetSuffixes = null;
 let SuburbNames = null;
 let HundredNames = null;
 // Two points that are less than the tolerance apart will be considered the same point.
-const Tolerance = 3;
+const Tolerance = 5;
 // Sets up an sqlite database.
 async function initializeDatabase() {
     return new Promise((resolve, reject) => {
