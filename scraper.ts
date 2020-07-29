@@ -665,7 +665,7 @@ async function parsePdf(url: string) {
 
             // Construct the application number.
 
-            if (applicationNumberCell === undefined) {}
+            if (applicationNumberCell === undefined) {
                 let rowSummary = row.map(cell => `[${cell.elements.map(element => `(${element.text})`).join("")}]`).join("");
                 console.log(`No application number was found on the row: ${rowSummary}`);
                 continue;
