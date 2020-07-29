@@ -31,7 +31,7 @@ let HundredNames = null;
 
 // Two points that are less than the tolerance apart will be considered the same point.
 
-const Tolerance = 5;
+const Tolerance = 3;
 
 // Sets up an sqlite database.
 
@@ -589,19 +589,25 @@ async function parsePdf(url: string) {
 
         let cellComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
         cells.sort(cellComparer);
+        console.log(`Cell count: ${cells.length}`);
 
         // Sort the text elements by approximate Y co-ordinate and then by X co-ordinate.
 
         let elementComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
         elements.sort(elementComparer);
+        console.log(`Element count: ${elements.length}`);
 
         // Allocate each element to an "owning" cell.
 
+        let ownedElementCount = 0;
         for (let element of elements) {
             let ownerCell = cells.find(cell => getPercentageOfElementInCell(element, cell) > 50);  // at least 50% of the element must be within the cell deemed to be the owner
-            if (ownerCell !== undefined)
+            if (ownerCell !== undefined) {
                 ownerCell.elements.push(element);
+                ownedElementCount++;
+            }
         }
+        console.log(`Owned element count: ${ownedElementCount}`);
 
         // Group the cells into rows.
 
