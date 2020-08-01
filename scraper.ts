@@ -271,7 +271,7 @@ async function parseCells(page, useRectangles: boolean) {
                             x2 = argsArray[1][argumentIndex++];
                             y2 = argsArray[1][argumentIndex++];
                         } else {
-                            argumentIndex++;
+                            argumentIndex += 2;
                         }
                     } else if (argsArray[0][operationIndex] === pdfjs.OPS.closePath) {  // closePath = 18
                         if (x1 === undefined || y1 === undefined)
