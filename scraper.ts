@@ -223,10 +223,10 @@ async function parseCells(page, useRectangles: boolean) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
-// The following lists all drawing and text instructions in the PDF (this is useful for
-// troubleshooting purposes).
- 
-console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+        // The following lists all drawing and text instructions in the PDF (this is useful for
+        // troubleshooting purposes).
+        // 
+        // console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
@@ -303,16 +303,7 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
             lines.push(previousRectangle);
             previousRectangle = undefined;
         }
-//        } else if (!useRectangles && previousRectangle !== undefined && operators.fnArray[index] === pdfjs.OPS.endPath) {
-//            lines.push(previousRectangle);
-//            previousRectangle = undefined;
-//        }
     }
-
-// console.log(`Found ${lines.length} line(s).`);
-
-for (let line of lines)
-    console.log(`DrawRectangle(e.Graphics, ${line.x}f, ${line.y}f, Math.Max(1f, ${line.width}f), Math.Max(1f, ${line.height}f));  // line segment`);
 
     // Determine all the horizontal lines and vertical lines that make up the grid.  The following
     // is careful to ignore the short lines and small rectangles that could make up vector images
@@ -606,7 +597,7 @@ function formatAddress(applicationNumber: string, address: string) {
 
 // Parses a PDF document.
 
-async function parsePdf(url: string, shouldRotate: boolean) {
+async function parsePdf(url: string, useRectangles: boolean) {
     console.log(`Reading development applications from ${url}.`);
 
     let developmentApplications = [];
@@ -631,31 +622,11 @@ async function parsePdf(url: string, shouldRotate: boolean) {
         // Construct cells (ie. rectangles) based on the horizontal and vertical line segments
         // in the PDF page.
 
-let cells = await parseCells(page, false);
+        let cells = await parseCells(page, useRectangles);
 
         // Construct elements based on the text in the PDF page.
 
         let elements = await parseElements(page);
-
-// for (let cell of cells)
-//     console.log(`DrawRectangle(e.Graphics, ${cell.x}f, ${cell.y}f, ${cell.width}f, ${cell.height}f);`);
-for (let element of elements)
-    console.log(`DrawText(e.Graphics, "${element.text.replace(/\"/g, "\"\"")}", ${element.x}f, ${element.y}f, ${element.width}f, ${element.height}f);`);
-
-        if (page.rotate !== 0)  // degrees
-            console.log(`Page is rotated ${page.rotate}°.`);
-
-        if (shouldRotate) {
-            // Experimentally determined that the following rotation and translation correctly
-            // aligns the grid lines with the text elements in some PDFs.
-
-            console.log("Retrying with a rotation of 90°.")
-            let viewport = await page.getViewport(1.0);
-            for (let cell of cells) {
-                rotate90AntiClockwise(cell);
-                cell.y = cell.y + viewport.height;  // experimentally determined translation
-            }
-        }
 
         // The co-ordinate system used in a PDF is typically "upside down" so invert the
         // co-ordinates (and so this makes the subsequent logic easier to understand).
@@ -769,8 +740,6 @@ for (let element of elements)
                 console.log(`No application number was found on the row: ${rowSummary}`);
                 continue;
             }
-
-console.log(`    Application Number Cell contains: [${applicationNumberCell.elements.map(element => element.text).join(",").trim()}]`);
 
             let applicationNumberText = applicationNumberCell.elements.map(element => element.text).join("").trim();
             let applicationNumberTokens = applicationNumberText.split(/\s+/);
@@ -914,9 +883,9 @@ selectedPdfUrls = [ "https://www.mtr.sa.gov.au/__data/assets/pdf_file/0035/47939
 
     for (let pdfUrl of selectedPdfUrls) {
         console.log(`Parsing document: ${pdfUrl}`);
-        let developmentApplications = await parsePdf(pdfUrl, false);
-//        if (developmentApplications.length === 0)
-//            developmentApplications = await parsePdf(pdfUrl, true);
+        let developmentApplications = await parsePdf(pdfUrl, false);  // more recent PDF files
+        if (developmentApplications.length === 0)
+            developmentApplications = await parsePdf(pdfUrl, true);  // older PDF files
         console.log(`Parsed ${developmentApplications.length} development ${(developmentApplications.length == 1) ? "application" : "applications"} from document: ${pdfUrl}`);
         
         // Attempt to avoid reaching 512 MB memory usage (this will otherwise result in the
