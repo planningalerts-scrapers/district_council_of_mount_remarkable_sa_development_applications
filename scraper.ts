@@ -31,7 +31,7 @@ let HundredNames = null;
 
 // Two points that are less than the tolerance apart will be considered the same point.
 
-const Tolerance = 4;
+const Tolerance = 3;
 
 // Sets up an sqlite database.
 
@@ -222,6 +222,8 @@ async function parseCells(page) {
 
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
+
+console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${operators.argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
