@@ -235,8 +235,8 @@ async function parseCells(page, useRectangles: boolean) {
         else if (operators.fnArray[index] === pdfjs.OPS.transform)
             transform = pdfjs.Util.transform(transform, argsArray);
         else if (operators.fnArray[index] === pdfjs.OPS.constructPath) {
-            let argumentIndex = 0;
             if (useRectangles) {  // older PDFs use this approach to construct lines
+                let argumentIndex = 0;
                 for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
                     if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo)  // moveTo = 13
                         argumentIndex += 2;
@@ -261,6 +261,7 @@ async function parseCells(page, useRectangles: boolean) {
                 let y1 = undefined;
                 let x2 = undefined;
                 let y2 = undefined;
+                let argumentIndex = 0;
                 for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
                     if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo) {  // moveTo = 13
                         x1 = argsArray[1][argumentIndex++];
@@ -269,6 +270,8 @@ async function parseCells(page, useRectangles: boolean) {
                         if (argumentIndex === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
                             x2 = argsArray[1][argumentIndex++];
                             y2 = argsArray[1][argumentIndex++];
+                        } else {
+                            argumentIndex++;
                         }
                     } else if (argsArray[0][operationIndex] === pdfjs.OPS.closePath) {  // closePath = 18
                         if (x1 === undefined || y1 === undefined)
@@ -287,7 +290,10 @@ async function parseCells(page, useRectangles: boolean) {
 
                 }
             }
-        } else if ((operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill) && previousRectangle !== undefined) {
+        } else if (useRectangles && previousRectangle !== undefined && (operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill)) {
+            lines.push(previousRectangle);
+            previousRectangle = undefined;
+        } else if (!useRectangles && previousRectangle !== undefined && operators.fnArray[index] === pdfjs.OPS.endPath) {
             lines.push(previousRectangle);
             previousRectangle = undefined;
         }
