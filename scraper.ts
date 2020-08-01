@@ -588,7 +588,7 @@ async function parsePdf(url: string, shouldRotate: boolean) {
             let viewport = await page.getViewport(1.0);
             for (let cell of cells) {
                 rotate90AntiClockwise(cell);
-                cell.y = cell.y + viewport.height;  // experimentally determined translation
+//                cell.y = cell.y + viewport.height;  // experimentally determined translation
             }
         }
 
