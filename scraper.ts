@@ -17,7 +17,7 @@ import didYouMean, * as didyoumean from "didyoumean2";
 
 sqlite3.verbose();
 
-const DevelopmentApplicationsUrl = "https://www.mtr.sa.gov.au/page.aspx?u=315";
+const DevelopmentApplicationsUrl = "https://www.mtr.sa.gov.au/documents/district-council-of-mount-remarkable6";
 const CommentUrl = "mailto:postmaster@mtr.sa.gov.au";
 
 declare const process: any;
@@ -154,6 +154,19 @@ function rotate90Clockwise(rectangle: Rectangle) {
     rectangle.height = height;
 }
 
+// Rotates a rectangle 90 degrees anti-clockwise about the origin.
+
+function rotate90AntiClockwise(rectangle: Rectangle) {
+    let x = rectangle.y;
+    let y = -(rectangle.x + rectangle.width);
+    let width = rectangle.height;
+    let height = rectangle.width;
+    rectangle.x = x;
+    rectangle.y = y;
+    rectangle.width = width;
+    rectangle.height = height;
+}
+
 // Calculates the fraction of an element that lies within a cell (as a percentage).  For example,
 // if a quarter of the specifed element lies within the specified cell then this would return 25.
 
@@ -194,7 +207,7 @@ function getHorizontalOverlapPercentage(rectangle1: Rectangle, rectangle2: Recta
 // Examines all the lines in a page of a PDF and constructs cells (ie. rectangles) based on those
 // lines.
 
-async function parseCells(page) {
+async function parseCells(page, useRectangles: boolean) {
     let operators = await page.getOperatorList();
 
     // Find the lines.  Each line is actually constructed using a rectangle with a very short
@@ -210,6 +223,11 @@ async function parseCells(page) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
+        // The following lists all drawing and text instructions in the PDF (this is useful for
+        // troubleshooting purposes).
+        // 
+        // console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
         else if (operators.fnArray[index] === pdfjs.OPS.save)
@@ -217,27 +235,71 @@ async function parseCells(page) {
         else if (operators.fnArray[index] === pdfjs.OPS.transform)
             transform = pdfjs.Util.transform(transform, argsArray);
         else if (operators.fnArray[index] === pdfjs.OPS.constructPath) {
-            let argumentIndex = 0;
-            for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
-                if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo)
-                    argumentIndex += 2;
-                else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo)
-                    argumentIndex += 2;
-                else if (argsArray[0][operationIndex] === pdfjs.OPS.rectangle) {
-                    let x1 = argsArray[1][argumentIndex++];
-                    let y1 = argsArray[1][argumentIndex++];
-                    let width = argsArray[1][argumentIndex++];
-                    let height = argsArray[1][argumentIndex++];
-                    let x2 = x1 + width;
-                    let y2 = y1 + height;
-                    [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
-                    [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
-                    width = x2 - x1;
-                    height = y2 - y1;
-                    previousRectangle = { x: x1, y: y1, width: width, height: height };
+            if (useRectangles) {  // older PDFs use this approach to construct lines
+                let argumentIndex = 0;
+                for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
+                    if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo)  // moveTo = 13
+                        argumentIndex += 2;
+                    else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo)  // lineTo = 14
+                        argumentIndex += 2;
+                    else if (argsArray[0][operationIndex] === pdfjs.OPS.rectangle) {  // rectangle = 19
+                        let x1 = argsArray[1][argumentIndex++];
+                        let y1 = argsArray[1][argumentIndex++];
+                        let width = argsArray[1][argumentIndex++];
+                        let height = argsArray[1][argumentIndex++];
+                        let x2 = x1 + width;
+                        let y2 = y1 + height;
+                        [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                        [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                        width = x2 - x1;
+                        height = y2 - y1;
+                        previousRectangle = { x: x1, y: y1, width: width, height: height };
+                    }
+                }
+            } else {  // newer PDFs use this approach to construct lines
+                let x1 = undefined;
+                let y1 = undefined;
+                let x2 = undefined;
+                let y2 = undefined;
+                let argumentIndex = 0;
+                for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
+                    if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo) {  // moveTo = 13
+                        x1 = argsArray[1][argumentIndex++];
+                        y1 = argsArray[1][argumentIndex++];
+                    } else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo) {  // lineTo = 14
+                        if ((argumentIndex % 8) === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
+                            x2 = argsArray[1][argumentIndex++];
+                            y2 = argsArray[1][argumentIndex++];
+                        } else {
+                            argumentIndex += 2;
+                        }
+                    } else if (argsArray[0][operationIndex] === pdfjs.OPS.closePath) {  // closePath = 18
+                        if (x1 === undefined || y1 === undefined)
+                            console.log("    Ignoring the constructed path because the top, left co-ordinate is undefined.");
+                        else if (x2 === undefined || y2 === undefined)
+                            console.log(`    Ignoring the constructed path because the bottom, right co-ordinate is undefined (but the top, left co-ordindate is [${x1}, ${y1}]).`);
+                        else {
+                            [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                            [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                            let width = x2 - x1;
+                            let height = y2 - y1;
+                            if (width < 0 && height < 0)
+                                lines.push({ x: x1 + width, y: y1 + height, width: Math.abs(width), height: Math.abs(height) });
+                            else if (width < 0)
+                                lines.push({ x: x1 + width, y: y1, width: Math.abs(width), height: height });
+                            else if (height < 0)
+                                lines.push({ x: x1, y: y1 + height, width: width, height: Math.abs(height) });
+                            else
+                                lines.push({ x: x1, y: y1, width: width, height: height });
+                            x1 = undefined;
+                            y1 = undefined;
+                            x2 = undefined;
+                            y2 = undefined;
+                        }
+                    }
                 }
             }
-        } else if ((operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill) && previousRectangle !== undefined) {
+        } else if (useRectangles && previousRectangle !== undefined && (operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill)) {
             lines.push(previousRectangle);
             previousRectangle = undefined;
         }
@@ -260,9 +322,11 @@ async function parseCells(page) {
 
     let verticalLineComparer = (a, b) => (a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0);
     verticalLines.sort(verticalLineComparer);
+    console.log(`Found ${verticalLines.length} vertical line(s).`);
 
     let horizontalLineComparer = (a, b) => (a.y > b.y) ? 1 : ((a.y < b.y) ? -1 : 0);
     horizontalLines.sort(horizontalLineComparer);
+    console.log(`Found ${horizontalLines.length} horizontal line(s).`);
     
     // Add the start and end points of all lines.
 
@@ -533,7 +597,7 @@ function formatAddress(applicationNumber: string, address: string) {
 
 // Parses a PDF document.
 
-async function parsePdf(url: string) {
+async function parsePdf(url: string, useRectangles: boolean) {
     console.log(`Reading development applications from ${url}.`);
 
     let developmentApplications = [];
@@ -558,7 +622,7 @@ async function parsePdf(url: string) {
         // Construct cells (ie. rectangles) based on the horizontal and vertical line segments
         // in the PDF page.
 
-        let cells = await parseCells(page);
+        let cells = await parseCells(page, useRectangles);
 
         // Construct elements based on the text in the PDF page.
 
@@ -589,19 +653,25 @@ async function parsePdf(url: string) {
 
         let cellComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
         cells.sort(cellComparer);
+        console.log(`    Cell count: ${cells.length}`);
 
         // Sort the text elements by approximate Y co-ordinate and then by X co-ordinate.
 
         let elementComparer = (a, b) => (Math.abs(a.y - b.y) < Tolerance) ? ((a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0)) : ((a.y > b.y) ? 1 : -1);
         elements.sort(elementComparer);
+        console.log(`    Element count: ${elements.length}`);
 
         // Allocate each element to an "owning" cell.
 
+        let ownedElementCount = 0;
         for (let element of elements) {
             let ownerCell = cells.find(cell => getPercentageOfElementInCell(element, cell) > 50);  // at least 50% of the element must be within the cell deemed to be the owner
-            if (ownerCell !== undefined)
+            if (ownerCell !== undefined) {
                 ownerCell.elements.push(element);
+                ownedElementCount++;
+            }
         }
+        console.log(`    Elements owned by cells count: ${ownedElementCount}`);
 
         // Group the cells into rows.
 
@@ -665,9 +735,15 @@ async function parsePdf(url: string) {
 
             // Construct the application number.
 
-            if (applicationNumberCell === undefined)
+            if (applicationNumberCell === undefined) {
+                let rowSummary = row.map(cell => `[${cell.elements.map(element => `(${element.text})`).join("")}]`).join("");
+                console.log(`No application number was found on the row: ${rowSummary}`);
                 continue;
-            let applicationNumber = applicationNumberCell.elements.map(element => element.text).join("").trim();
+            }
+
+            let applicationNumberText = applicationNumberCell.elements.map(element => element.text).join("").trim();
+            let applicationNumberTokens = applicationNumberText.split(/\s+/);
+            let applicationNumber = applicationNumberTokens[0];
             if (!/[0-9]+\/[0-9]+\/[0-9]+/.test(applicationNumber)) { // an application number must be present, for example, "690/006/15"
                 console.log(`Ignoring "${applicationNumber}" because it is not formatted as an application number.`);
                 continue;
@@ -692,7 +768,9 @@ async function parsePdf(url: string) {
             // Construct the description.
 
             let description = "";
-            if (descriptionCell !== undefined)
+            if (applicationNumberTokens.length >= 2)
+                description = applicationNumberTokens[1];
+            else if (descriptionCell !== undefined)
                 description = descriptionCell.elements.map(element => element.text).join(" ").replace(/\s\s+/g, " ").trim();
 
             // Construct the received date.
@@ -772,17 +850,12 @@ async function main() {
     await sleep(2000 + getRandom(0, 5) * 1000);
     let $ = cheerio.load(body);
     
-    let elements = []
-        .concat($("td.uContentListDesc p a").get())
-        .concat($("td.u6ListTD div.u6ListItem a").get())
-        .concat($("div.unityHtmlArticle p a").get());
-
     let pdfUrls: string[] = [];
-    for (let element of elements) {
+    for (let element of $("h4 a").get()) {
         let pdfUrl = new urlparser.URL(element.attribs.href, DevelopmentApplicationsUrl).href;
         if (pdfUrl.toLowerCase().includes(".pdf"))
             if (!pdfUrls.some(url => url === pdfUrl))  // avoid duplicates
-                pdfUrls.push(pdfUrl);
+                pdfUrls.unshift(pdfUrl);
     }
 
     // Always parse the most recent PDF file and randomly select one other PDF file to parse.
@@ -807,7 +880,9 @@ async function main() {
 
     for (let pdfUrl of selectedPdfUrls) {
         console.log(`Parsing document: ${pdfUrl}`);
-        let developmentApplications = await parsePdf(pdfUrl);
+        let developmentApplications = await parsePdf(pdfUrl, false);  // more recent PDF files
+        if (developmentApplications.length === 0)
+            developmentApplications = await parsePdf(pdfUrl, true);  // older PDF files
         console.log(`Parsed ${developmentApplications.length} development ${(developmentApplications.length == 1) ? "application" : "applications"} from document: ${pdfUrl}`);
         
         // Attempt to avoid reaching 512 MB memory usage (this will otherwise result in the
