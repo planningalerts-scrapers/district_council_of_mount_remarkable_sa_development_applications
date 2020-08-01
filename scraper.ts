@@ -223,10 +223,10 @@ async function parseCells(page, useRectangles: boolean) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
-        // The following lists all drawing and text instructions in the PDF (this is useful for
-        // troubleshooting purposes).
-        //
-        // console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+// The following lists all drawing and text instructions in the PDF (this is useful for
+// troubleshooting purposes).
+
+console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
@@ -279,7 +279,6 @@ async function parseCells(page, useRectangles: boolean) {
                         else if (x2 === undefined || y2 === undefined)
                             console.log(`    Ignoring the constructed path because the bottom, right co-ordinate is undefined (but the top, left co-ordindate is [${x1}, ${y1}]).`);
                         else {
-                            argumentIndex += 2;
                             [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
                             [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
                             let width = x2 - x1;
@@ -287,6 +286,7 @@ async function parseCells(page, useRectangles: boolean) {
                             previousRectangle = { x: x1, y: y1, width: width, height: height };
                             lines.push(previousRectangle);
                             previousRectangle = undefined;
+                            argumentIndex += 2;
                         }
                     }
                 }
