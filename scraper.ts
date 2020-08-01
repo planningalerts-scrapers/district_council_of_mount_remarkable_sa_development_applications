@@ -286,7 +286,6 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                             previousRectangle = { x: x1, y: y1, width: width, height: height };
                             lines.push(previousRectangle);
                             previousRectangle = undefined;
-                            argumentIndex += 2;
                             x1 = undefined;
                             y1 = undefined;
                             x2 = undefined;
