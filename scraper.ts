@@ -309,7 +309,8 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
 //        }
     }
 
-console.log(`Found ${lines.length} line(s).`);
+// console.log(`Found ${lines.length} line(s).`);
+
 for (let line of lines)
     console.log(`DrawRectangle(e.Graphics, ${line.x}f, ${line.y}f, Math.Max(1f, ${line.width}f), Math.Max(1f, ${line.height}f));  // line segment`);
 
@@ -768,6 +769,8 @@ for (let element of elements)
                 console.log(`No application number was found on the row: ${rowSummary}`);
                 continue;
             }
+
+console.log(`    Application Number Cell contains: [${applicationNumberCell.elements.map(element => element.text).join(",").trim()}]`);
 
             let applicationNumber = applicationNumberCell.elements.map(element => element.text).join("").trim();
             if (!/[0-9]+\/[0-9]+\/[0-9]+/.test(applicationNumber)) { // an application number must be present, for example, "690/006/15"
