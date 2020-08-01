@@ -267,7 +267,7 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                         x1 = argsArray[1][argumentIndex++];
                         y1 = argsArray[1][argumentIndex++];
                     } else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo) {  // lineTo = 14
-                        if ((argumentIndex % 10) === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
+                        if ((argumentIndex % 8) === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
                             x2 = argsArray[1][argumentIndex++];
                             y2 = argsArray[1][argumentIndex++];
                         } else {
