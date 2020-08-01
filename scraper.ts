@@ -577,6 +577,11 @@ async function parsePdf(url: string, shouldRotate: boolean) {
 
         let elements = await parseElements(page);
 
+for (let cell of cells)
+    console.log(`DrawRectangle(e.Graphics, ${cell.x}f, ${cell.y}f, ${cell.width}f, ${cell.height}f);`);
+for (let element of elements)
+    console.log(`DrawText(e.Graphics, "${element.text.replace(/\"/g, "\"\"")}", ${element.x}f, ${element.y}f, ${element.width}f, ${element.height}f);`);
+
         if (page.rotate !== 0)  // degrees
             console.log(`Page is rotated ${page.rotate}°.`);
 
@@ -588,7 +593,7 @@ async function parsePdf(url: string, shouldRotate: boolean) {
             let viewport = await page.getViewport(1.0);
             for (let cell of cells) {
                 rotate90AntiClockwise(cell);
-//                cell.y = cell.y + viewport.height;  // experimentally determined translation
+                cell.y = cell.y + viewport.height;  // experimentally determined translation
             }
         }
 
@@ -844,8 +849,8 @@ selectedPdfUrls = [ "https://www.mtr.sa.gov.au/__data/assets/pdf_file/0035/47939
     for (let pdfUrl of selectedPdfUrls) {
         console.log(`Parsing document: ${pdfUrl}`);
         let developmentApplications = await parsePdf(pdfUrl, false);
-        if (developmentApplications.length === 0)
-            developmentApplications = await parsePdf(pdfUrl, true);
+//        if (developmentApplications.length === 0)
+//            developmentApplications = await parsePdf(pdfUrl, true);
         console.log(`Parsed ${developmentApplications.length} development ${(developmentApplications.length == 1) ? "application" : "applications"} from document: ${pdfUrl}`);
         
         // Attempt to avoid reaching 512 MB memory usage (this will otherwise result in the
