@@ -283,8 +283,12 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                             [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
                             let width = x2 - x1;
                             let height = y2 - y1;
-                            if (width < 0)
+                            if (width < 0 && height < 0)
+                                lines.push({ x: x1 + width, y: y1 + height, width: Math.abs(width), height: Math.abs(height) });
+                            else if (width < 0)
                                 lines.push({ x: x1 + width, y: y1, width: Math.abs(width), height: height });
+                            else if (height < 0)
+                                lines.push({ x: x1, y: y1 + height, width: width, height: Math.abs(height) });
                             else
                                 lines.push({ x: x1, y: y1, width: width, height: height });
                             x1 = undefined;
@@ -307,7 +311,7 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
 
 console.log(`Found ${lines.length} line(s).`);
 for (let line of lines)
-    console.log(`DrawRectangle(e.Graphics, ${line.x}f, ${line.y}f, ${line.width}f, ${line.height}f);  // line segment`);
+    console.log(`DrawRectangle(e.Graphics, ${line.x}f, ${line.y}f, Math.Max(1f, ${line.width}f), Math.Max(1f, ${line.height}f));  // line segment`);
 
     // Determine all the horizontal lines and vertical lines that make up the grid.  The following
     // is careful to ignore the short lines and small rectangles that could make up vector images
