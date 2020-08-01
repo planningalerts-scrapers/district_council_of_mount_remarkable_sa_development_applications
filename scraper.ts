@@ -207,7 +207,7 @@ function getHorizontalOverlapPercentage(rectangle1: Rectangle, rectangle2: Recta
 // Examines all the lines in a page of a PDF and constructs cells (ie. rectangles) based on those
 // lines.
 
-async function parseCells(page) {
+async function parseCells(page, useRectangles: boolean) {
     let operators = await page.getOperatorList();
 
     // Find the lines.  Each line is actually constructed using a rectangle with a very short
@@ -233,23 +233,55 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
             transform = pdfjs.Util.transform(transform, argsArray);
         else if (operators.fnArray[index] === pdfjs.OPS.constructPath) {
             let argumentIndex = 0;
-            for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
-                if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo)
-                    argumentIndex += 2;
-                else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo)
-                    argumentIndex += 2;
-                else if (argsArray[0][operationIndex] === pdfjs.OPS.rectangle) {
-                    let x1 = argsArray[1][argumentIndex++];
-                    let y1 = argsArray[1][argumentIndex++];
-                    let width = argsArray[1][argumentIndex++];
-                    let height = argsArray[1][argumentIndex++];
-                    let x2 = x1 + width;
-                    let y2 = y1 + height;
-                    [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
-                    [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
-                    width = x2 - x1;
-                    height = y2 - y1;
-                    previousRectangle = { x: x1, y: y1, width: width, height: height };
+            if (useRectangles) {  // older PDFs use this approach to construct lines
+                for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
+                    if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo)  // moveTo = 13
+                        argumentIndex += 2;
+                    else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo)  // lineTo = 14
+                        argumentIndex += 2;
+                    else if (argsArray[0][operationIndex] === pdfjs.OPS.rectangle) {  // rectangle = 19
+                        let x1 = argsArray[1][argumentIndex++];
+                        let y1 = argsArray[1][argumentIndex++];
+                        let width = argsArray[1][argumentIndex++];
+                        let height = argsArray[1][argumentIndex++];
+                        let x2 = x1 + width;
+                        let y2 = y1 + height;
+                        [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                        [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                        width = x2 - x1;
+                        height = y2 - y1;
+                        previousRectangle = { x: x1, y: y1, width: width, height: height };
+                    }
+                }
+            } else {  // newer PDFs use this approach to construct lines
+                let x1 = undefined;
+                let y1 = undefined;
+                let x2 = undefined;
+                let y2 = undefined;
+                for (let operationIndex = 0; operationIndex < argsArray[0].length; operationIndex++) {
+                    if (argsArray[0][operationIndex] === pdfjs.OPS.moveTo) {  // moveTo = 13
+                        x1 = argsArray[1][argumentIndex++];
+                        y1 = argsArray[1][argumentIndex++];
+                    } else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo) {  // lineTo = 14
+                        if (argumentIndex === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
+                            x2 = argsArray[1][argumentIndex++];
+                            y2 = argsArray[1][argumentIndex++];
+                        }
+                    } else if (argsArray[0][operationIndex] === pdfjs.OPS.closePath) {  // closePath = 18
+                        if (x1 === undefined || y1 === undefined)
+                            console.log("    Ignoring the constructed path because the top, left co-ordinate is undefined.");
+                        else if (x2 === undefined || y2 === undefined)
+                            console.log(`    Ignoring the constructed path because the bottom, right co-ordinate is undefined (but the top, left co-ordindate is [${x1}, ${y1}]).`);
+                        else {
+                            argumentIndex += 2;
+                            [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                            [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                            let width = x2 - x1;
+                            let height = y2 - y1;
+                            previousRectangle = { x: x1, y: y1, width: width, height: height };
+                        }
+                    }
+
                 }
             }
         } else if ((operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill) && previousRectangle !== undefined) {
@@ -257,6 +289,8 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
             previousRectangle = undefined;
         }
     }
+
+console.log(`Found ${lines.length} line(s).`);
 
     // Determine all the horizontal lines and vertical lines that make up the grid.  The following
     // is careful to ignore the short lines and small rectangles that could make up vector images
@@ -575,7 +609,7 @@ async function parsePdf(url: string, shouldRotate: boolean) {
         // Construct cells (ie. rectangles) based on the horizontal and vertical line segments
         // in the PDF page.
 
-        let cells = await parseCells(page);
+        let cells = await parseCells(page, true);
 
         // Construct elements based on the text in the PDF page.
 
