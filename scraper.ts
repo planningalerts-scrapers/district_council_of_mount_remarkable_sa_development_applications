@@ -225,8 +225,8 @@ async function parseCells(page, useRectangles: boolean) {
 
 // The following lists all drawing and text instructions in the PDF (this is useful for
 // troubleshooting purposes).
-// 
-// console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+ 
+console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
