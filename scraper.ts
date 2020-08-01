@@ -281,9 +281,12 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                         else {
                             [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
                             [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
-                            let width = Math.abs(x2 - x1);
-                            let height = Math.abs(y2 - y1);
-                            lines.push({ x: x2, y: y2, width: width, height: height });
+                            let width = x2 - x1;
+                            let height = y2 - y1;
+                            if (width < 0)
+                                lines.push({ x: x1 + width, y: y1, width: Math.abs(width), height: height });
+                            else
+                                lines.push({ x: x1, y: y1, width: width, height: height });
                             x1 = undefined;
                             y1 = undefined;
                             x2 = undefined;
