@@ -154,6 +154,19 @@ function rotate90Clockwise(rectangle: Rectangle) {
     rectangle.height = height;
 }
 
+// Rotates a rectangle 90 degrees anti-clockwise about the origin.
+
+function rotate90AntiClockwise(rectangle: Rectangle) {
+    let x = rectangle.y;
+    let y = -(rectangle.x + rectangle.width);
+    let width = rectangle.height;
+    let height = rectangle.width;
+    rectangle.x = x;
+    rectangle.y = y;
+    rectangle.width = width;
+    rectangle.height = height;
+}
+
 // Calculates the fraction of an element that lies within a cell (as a percentage).  For example,
 // if a quarter of the specifed element lies within the specified cell then this would return 25.
 
@@ -533,7 +546,7 @@ function formatAddress(applicationNumber: string, address: string) {
 
 // Parses a PDF document.
 
-async function parsePdf(url: string) {
+async function parsePdf(url: string, shouldRotate: boolean) {
     console.log(`Reading development applications from ${url}.`);
 
     let developmentApplications = [];
@@ -563,6 +576,21 @@ async function parsePdf(url: string) {
         // Construct elements based on the text in the PDF page.
 
         let elements = await parseElements(page);
+
+        if (page.rotate !== 0)  // degrees
+            console.log(`Page is rotated ${page.rotate}°.`);
+
+        if (shouldRotate) {
+            // Experimentally determined that the following rotation and translation correctly
+            // aligns the grid lines with the text elements in some PDFs.
+
+            console.log("Retrying with a rotation of 90°.")
+            let viewport = await page.getViewport(1.0);
+            for (let cell of cells) {
+                rotate90AntiClockwise(cell);
+                cell.y = cell.y + viewport.height;  // experimentally determined translation
+            }
+        }
 
         // The co-ordinate system used in a PDF is typically "upside down" so invert the
         // co-ordinates (and so this makes the subsequent logic easier to understand).
@@ -810,9 +838,14 @@ async function main() {
     if (getRandom(0, 2) === 0)
         selectedPdfUrls.reverse();
 
+console.log("Hard-coded the PDF for testing purposes.");
+pdfUrl = [ "https://www.mtr.sa.gov.au/__data/assets/pdf_file/0035/479393/6.-June-2020.pdf" ];
+
     for (let pdfUrl of selectedPdfUrls) {
         console.log(`Parsing document: ${pdfUrl}`);
-        let developmentApplications = await parsePdf(pdfUrl);
+        let developmentApplications = await parsePdf(pdfUrl, false);
+        if (developmentApplications.length === 0)
+            developmentApplications = await parsePdf(pdfUrl, true);
         console.log(`Parsed ${developmentApplications.length} development ${(developmentApplications.length == 1) ? "application" : "applications"} from document: ${pdfUrl}`);
         
         // Attempt to avoid reaching 512 MB memory usage (this will otherwise result in the
