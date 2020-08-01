@@ -223,7 +223,7 @@ async function parseCells(page) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
-console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${operators.argsArray}`);
+console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
