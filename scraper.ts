@@ -285,18 +285,20 @@ async function parseCells(page, useRectangles: boolean) {
                             let width = x2 - x1;
                             let height = y2 - y1;
                             previousRectangle = { x: x1, y: y1, width: width, height: height };
+                            lines.push(previousRectangle);
+                            previousRectangle = undefined;
                         }
                     }
-
                 }
             }
         } else if (useRectangles && previousRectangle !== undefined && (operators.fnArray[index] === pdfjs.OPS.fill || operators.fnArray[index] === pdfjs.OPS.eoFill)) {
             lines.push(previousRectangle);
             previousRectangle = undefined;
-        } else if (!useRectangles && previousRectangle !== undefined && operators.fnArray[index] === pdfjs.OPS.endPath) {
-            lines.push(previousRectangle);
-            previousRectangle = undefined;
         }
+//        } else if (!useRectangles && previousRectangle !== undefined && operators.fnArray[index] === pdfjs.OPS.endPath) {
+//            lines.push(previousRectangle);
+//            previousRectangle = undefined;
+//        }
     }
 
 console.log(`Found ${lines.length} line(s).`);
