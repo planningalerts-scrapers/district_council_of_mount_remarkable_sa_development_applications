@@ -223,7 +223,10 @@ async function parseCells(page, useRectangles: boolean) {
     for (let index = 0; index < operators.fnArray.length; index++) {
         let argsArray = operators.argsArray[index];
 
-console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
+        // The following lists all drawing and text instructions in the PDF (this is useful for
+        // troubleshooting purposes).
+        //
+        // console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnArray[index])} ${argsArray}`);
 
         if (operators.fnArray[index] === pdfjs.OPS.restore)
             transform = transformStack.pop();
@@ -609,7 +612,7 @@ async function parsePdf(url: string, shouldRotate: boolean) {
         // Construct cells (ie. rectangles) based on the horizontal and vertical line segments
         // in the PDF page.
 
-        let cells = await parseCells(page, true);
+let cells = await parseCells(page, false);
 
         // Construct elements based on the text in the PDF page.
 
