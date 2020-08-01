@@ -267,7 +267,7 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                         x1 = argsArray[1][argumentIndex++];
                         y1 = argsArray[1][argumentIndex++];
                     } else if (argsArray[0][operationIndex] === pdfjs.OPS.lineTo) {  // lineTo = 14
-                        if (argumentIndex === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
+                        if ((argumentIndex % 10) === 4) {  // the right-most, bottom-most index (ie. the diagonally opposite corner of the rectangle)
                             x2 = argsArray[1][argumentIndex++];
                             y2 = argsArray[1][argumentIndex++];
                         } else {
@@ -287,6 +287,10 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
                             lines.push(previousRectangle);
                             previousRectangle = undefined;
                             argumentIndex += 2;
+                            x1 = undefined;
+                            y1 = undefined;
+                            x2 = undefined;
+                            y2 = undefined;
                         }
                     }
                 }
@@ -302,6 +306,8 @@ console.log(`${Object.entries(pdfjs.OPS).find(pair => pair[1] === operators.fnAr
     }
 
 console.log(`Found ${lines.length} line(s).`);
+for (let line of lines)
+    console.log(`DrawRectangle(e.Graphics, ${line.x}f, ${line.y}f, ${line.width}f, ${line.height}f);  // line segment`);
 
     // Determine all the horizontal lines and vertical lines that make up the grid.  The following
     // is careful to ignore the short lines and small rectangles that could make up vector images
@@ -626,8 +632,8 @@ let cells = await parseCells(page, false);
 
         let elements = await parseElements(page);
 
-for (let cell of cells)
-    console.log(`DrawRectangle(e.Graphics, ${cell.x}f, ${cell.y}f, ${cell.width}f, ${cell.height}f);`);
+// for (let cell of cells)
+//     console.log(`DrawRectangle(e.Graphics, ${cell.x}f, ${cell.y}f, ${cell.width}f, ${cell.height}f);`);
 for (let element of elements)
     console.log(`DrawText(e.Graphics, "${element.text.replace(/\"/g, "\"\"")}", ${element.x}f, ${element.y}f, ${element.width}f, ${element.height}f);`);
 
