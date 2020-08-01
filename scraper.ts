@@ -772,7 +772,9 @@ for (let element of elements)
 
 console.log(`    Application Number Cell contains: [${applicationNumberCell.elements.map(element => element.text).join(",").trim()}]`);
 
-            let applicationNumber = applicationNumberCell.elements.map(element => element.text).join("").trim();
+            let applicationNumberText = applicationNumberCell.elements.map(element => element.text).join("").trim();
+            let applicationNumberTokens = applicationNumberText.split(/\s+/);
+            let applicationNumber = applicationNumberTokens[0];
             if (!/[0-9]+\/[0-9]+\/[0-9]+/.test(applicationNumber)) { // an application number must be present, for example, "690/006/15"
                 console.log(`Ignoring "${applicationNumber}" because it is not formatted as an application number.`);
                 continue;
@@ -797,7 +799,9 @@ console.log(`    Application Number Cell contains: [${applicationNumberCell.elem
             // Construct the description.
 
             let description = "";
-            if (descriptionCell !== undefined)
+            if (applicationNumberTokens.length >= 2)
+                description = applicationNumberTokens[1];
+            else if (descriptionCell !== undefined)
                 description = descriptionCell.elements.map(element => element.text).join(" ").replace(/\s\s+/g, " ").trim();
 
             // Construct the received date.
