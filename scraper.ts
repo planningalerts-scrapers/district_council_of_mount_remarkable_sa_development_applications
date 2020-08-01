@@ -249,8 +249,8 @@ async function parseCells(page, useRectangles: boolean) {
                         let height = argsArray[1][argumentIndex++];
                         let x2 = x1 + width;
                         let y2 = y1 + height;
-                        // [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
-                        // [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                        [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                        [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
                         width = x2 - x1;
                         height = y2 - y1;
                         previousRectangle = { x: x1, y: y1, width: width, height: height };
@@ -279,8 +279,8 @@ async function parseCells(page, useRectangles: boolean) {
                         else if (x2 === undefined || y2 === undefined)
                             console.log(`    Ignoring the constructed path because the bottom, right co-ordinate is undefined (but the top, left co-ordindate is [${x1}, ${y1}]).`);
                         else {
-                            [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
-                            [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
+                            // [x1, y1] = pdfjs.Util.applyTransform([x1, y1], transform);
+                            // [x2, y2] = pdfjs.Util.applyTransform([x2, y2], transform);
                             let width = x2 - x1;
                             let height = y2 - y1;
                             previousRectangle = { x: x1, y: y1, width: width, height: height };
