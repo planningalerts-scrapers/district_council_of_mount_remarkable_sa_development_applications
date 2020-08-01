@@ -31,7 +31,7 @@ let HundredNames = null;
 
 // Two points that are less than the tolerance apart will be considered the same point.
 
-const Tolerance = 3;
+const Tolerance = 4;
 
 // Sets up an sqlite database.
 
@@ -273,9 +273,11 @@ async function parseCells(page) {
 
     let verticalLineComparer = (a, b) => (a.x > b.x) ? 1 : ((a.x < b.x) ? -1 : 0);
     verticalLines.sort(verticalLineComparer);
+    console.log(`Found ${verticalLines.length} vertical line(s).`);
 
     let horizontalLineComparer = (a, b) => (a.y > b.y) ? 1 : ((a.y < b.y) ? -1 : 0);
     horizontalLines.sort(horizontalLineComparer);
+    console.log(`Found ${horizontalLines.length} horizontal line(s).`);
     
     // Add the start and end points of all lines.
 
